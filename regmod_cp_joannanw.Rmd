@@ -1,0 +1,117 @@
+---
+title: "Regression Models Course Project"
+author: "joannanw"
+date: "Sunday, April 26, 2015"
+output: word_document
+---
+
+## Executive Summary
+
+Motor Trend aims to analyze the relationship between a set of variables and miles per gallon (MPG) from the data set "mtcars". "mtcars" comprises of 32 vehicle make and 11 variables such as transmission type, weight, and cylinder. The analysis aims to answer whether an automatic or manual transmission is better for fuel consumption, and quantify the miles per gallon (MPG) difference in a sensible manner. This paper first uses exploratory data analysis to identify how transmission type affects the MPG. This is followed by a hypothesis testing to show that there is a difference between automatic and manual transmission performance on MPG.A regression analysis is then performed to identify the variables that are strongly correlated. These results are finally used to create a regression model that significantly explains the variance of MPG.
+
+
+## Analysis
+
+First, the data set is loaded and observed.
+
+```{r}
+data(mtcars)
+str(mtcars)
+head(mtcars,3)
+```
+
+Next, we will check if the transmission type (automatic or manual) affects the miles per gallon (MPG) variable. In here, am = 0 is automatic and am = 1 is manual.
+
+```{r}
+library(ggplot2)
+ggplot(data=mtcars, aes(x=as.factor(am), y=mpg, fill = factor(am))) +
+geom_boxplot(notch = F, show_guide = TRUE) +
+facet_grid(. ~ am) +
+xlab("Transmission type") +
+ylab("MPG") +
+ggtitle("Transmission type vs. MPG")
+```
+
+The boxplot above shows that there is a difference in MPG between automatic and manual transmissions. To explore this further, a hypothesis testing is performed. The null hypothesis indicates no performance difference in MPG between automatic and manual cars. The alternative hypothesis indicates that there is a difference in MPG between the 2 transmission types.
+
+```{r}
+testTransmission <- t.test(mtcars[mtcars$am == 0,]$mpg, mtcars[mtcars$am == 1,]$mpg)
+```
+
+This hypothesis test yields p value of `r testTransmission$p.value`, which is smaller than 0.05. This allows us to reject the null hypothesis and conclusively determine that there is a difference in MPG between different transmission types.
+
+## Regression Modeling
+
+The first step to modeling the regression equation is to identify variables that are significantly correlated to one another. The scatterplot below is ordered and colored by correlation. The ones closer to the diagonal have a stronger correlation.
+
+```{r}
+library(gclus)
+dta <- mtcars # get data 
+dta.r <- abs(cor(dta)) # get correlations
+dta.col <- dmat.color(dta.r) # get colors
+# reorder variables so those with highest correlation
+# are closest to the diagonal
+dta.o <- order.single(dta.r) 
+cpairs(dta, dta.o, panel.colors=dta.col, gap=.5,
+main="Variables Ordered and Colored by Correlation" )
+```
+
+Through the plot, we are able to surmise 3 variables with strong correlation: cyl, disp and wt. Using this, we are able to create a combination of regression models:
+
+* Model 1: cyl
+* Model 2: disp
+* Model 3: cyl + disp
+* Model 4: wt
+* Model 5: wt + cyl
+* Model 6: wt + disp
+* Model 7: cyl + disp + wt
+
+```{r}
+fitCyl <- lm(mpg ~ cyl, mtcars)
+fitDisp <- lm(mpg ~ disp, mtcars)
+fitCylDisp <- lm(mpg ~ cyl + disp, mtcars)
+fitWt <- lm(mpg ~ wt, mtcars)
+fitWtCyl <- lm(mpg ~ wt + cyl, mtcars)
+fitWtDisp <- lm(mpg ~ wt + disp, mtcars)
+fitAll <- lm(mpg ~ cyl + disp + wt, mtcars)
+```
+
+To ascertain how much the model impacts the MPG performance, the Adj. R Squared value is studied. This value is the percentage of which a variance in the MPG could be explained by the model. 
+
+The Adj. R Squared values are:
+
+* Model 1: `r summary(fitCyl)$adj.r.squared`
+* Model 2: `r summary(fitDisp)$adj.r.squared`
+* Model 3: `r summary(fitCylDisp)$adj.r.squared`
+* Model 4: `r summary(fitWt)$adj.r.squared`
+* Model 5: `r summary(fitWtCyl)$adj.r.squared`
+* Model 6: `r summary(fitWtDisp)$adj.r.squared`
+* Model 7: `r summary(fitAll)$adj.r.squared`
+
+The highest Adj. R Squared values belonging to Model 5 is picked. 
+
+```{r}
+summary(fitWtCyl)$coefficients
+
+```
+
+The coefficients of Model 5 indicate that assuming weight stays the same, every increase in cylinder results in decrease of MPG by 1.501 units. Assuming cylinder stays the same, every increase in weight results in decrease of MPG by  3.19 units.
+
+As the transmission type also affects the MPG performance, let us explore how its addition to the model affect the Adj. R Squared value.
+
+```{r}
+fitNew <- lm(mpg ~ wt + cyl + am, mtcars)
+```
+
+## Conclusion
+
+This new model results in Adj. R Squared value of `r summary(fitNew)$adj.r.squared`. This new value is very close to Model 5 which is `r summary(fitWtCyl)$adj.r.squared`. This indicates that although the transmission type is a predictor of MPG performance, there are other variables that predict MPG at a higher percentage. Therefore, we should select Cylinder and Weight as the variables in the regression model. 
+
+To further study the results, the residual plots are explored that show accuracy of independent assumptions, normality of the residual distribution, randomness, and insignificant outliers. 
+
+```{r}
+par(mfrow = c(2,2))
+plot(fitWtCyl)
+```
+
+ 
